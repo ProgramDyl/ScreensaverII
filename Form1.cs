@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Media;
@@ -9,15 +10,16 @@ namespace screensaver_final
     public partial class Form1 : Form
     {
         private List<Shape> shapes; // List to hold all shapes
+        private List<ExplosionParticle> explosionParticles = new List<ExplosionParticle>();
         private Graphics g;
         private readonly Random random;
         private readonly SoundPlayer introSound; //sounds for intro music :)
-        private Timer Timer1;
 
         public Form1()
         {
             InitializeComponent();
             shapes = new List<Shape>(); // Initialize the list
+            explosionParticles = new List<ExplosionParticle>();
             random = new Random();
             this.BackColor = Color.Azure;
             this.DoubleBuffered = true;
@@ -56,12 +58,21 @@ namespace screensaver_final
                 shape.DetectEdge(this.ClientSize.Width, this.ClientSize.Height);
             }
 
-            //when pacman eats another shape
+            // Update explosion particles
+            for (int i = explosionParticles.Count - 1; i >= 0; i--)
+            {
+                if (!explosionParticles[i].Update())
+                {
+                    explosionParticles.RemoveAt(i);
+                }
+            }
+
+            // when Pac-Man eats another shape
             for (int i = shapes.Count - 1; i >= 0; i--)
             {
                 if (shapes[i] is PacMan pacMan)
                 {
-                    pacMan.EatShapes((shapes)); //call the eat method
+                    pacMan.EatShapes((shapes)); // call the eat method
                 }
             }
 
@@ -70,13 +81,19 @@ namespace screensaver_final
             {
                 for (int j = i + 1; j < shapes.Count; j++)
                 {
-                    shapes[i].ShapeCollide(shapes[j]);
+                    if (shapes[i].CollidesWith(shapes[j]))
+                    {
+                        shapes[i].ShapeCollide(shapes[j]); // Ensure collision response is handled
+                        CreateExplosion(shapes[i].X, shapes[i].Y, 20); // Create explosion at collision point
+                    }
                 }
             }
 
             Invalidate(); // Redraws the form every tick
             Console.WriteLine("Timer ticked, form invalidated.");
         }
+
+
 
         private void Form1_MouseClick(object sender, MouseEventArgs e)
         {
@@ -175,6 +192,12 @@ namespace screensaver_final
                     shape.Draw(g);
                     Console.WriteLine($"Shape added at ({shape.X}, {shape.Y}) with size ({shape.Width}x{shape.Height})");
                 }
+
+                //draw explosion particles
+                foreach (var particle in explosionParticles)
+                {
+                    particle.Draw(g);
+                }
             }
         } //end form1Paint
 
@@ -185,6 +208,22 @@ namespace screensaver_final
                 shape.BoundWidth = this.ClientSize.Width;
                 shape.BoundHeight = this.ClientSize.Height;
             }
+        }
+
+
+        //explosions!!
+        private void CreateExplosion(float x, float y, int numParticles)
+        {
+            Random random = new Random();
+            for (int i = 0; i < numParticles; i++)
+            {
+                float velocityX = (float)(random.NextDouble() * 2 - 1);
+                float velocityY = (float)(random.NextDouble() * 2 - 1);
+                ExplosionParticle particle = new ExplosionParticle(x, y, velocityX, velocityY, 20, Color.Orange);
+                explosionParticles.Add(particle);
+            }
+
+            Console.WriteLine($"Created explosion at ({x}, {y}) with {numParticles} particles.");
         }
     }
 }
